@@ -1,0 +1,277 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <random>
+
+#define BG_RED "\x1B[41m"
+#define BG_BLUE "\x1B[44m"
+#define BG_BLACK "\x1B[40m"
+#define BG_GREEN "\x1B[42m"
+#define WHITE "\x1B[37m"
+#define RESET "\x1b[0m"
+
+using namespace std;
+
+class Carta {
+    
+public:
+    string paleta[4] = {BG_RED, BG_BLUE, BG_BLACK, BG_GREEN};
+    int poder = 0;
+    int color = 0;
+    //Carta();
+    Carta(int p, int c);
+    void mostrar();
+};
+
+Carta::Carta(int p, int c){
+    color = c;
+    poder = p;
+    
+}
+
+void Carta::mostrar() {
+    cout << WHITE << paleta[color] << poder << RESET << " ";
+}
+
+class Mazo {
+public:
+    vector<Carta> cartas;
+
+    Mazo();
+    void barajar();
+    Carta repartir();
+    void mostrar();
+};
+
+Mazo::Mazo() {
+    
+    
+    for (int i = 1; i <= 9; i++) {
+        for (int j = 0; j < 4; j++) {
+            cartas.push_back(Carta(i, j));
+        }
+    }
+    barajar();
+}
+
+
+void Mazo::barajar() {
+    int indUno;
+    int indDos;
+
+    for (int i = 0; i < 25; i++) {
+        indUno = rand() % cartas.size();
+        indDos = rand() % cartas.size();
+        swap(cartas[indUno], cartas[indDos]);
+    }
+
+}
+
+
+Carta Mazo::repartir() {
+    Carta temp = cartas.back();
+    cartas.pop_back();
+    return temp;
+}
+
+
+void Mazo::mostrar() {
+    int indice = 0;
+    for (int i = 0; i < 9; i++) {
+        for (int j = 0; j < 4; j++) {
+            indice = (4 * i) + j;
+            cartas[indice].mostrar();
+        }
+    }
+}
+
+
+class Mano {
+    
+    public:
+    
+    vector<Carta> cartas;
+
+    Mano(int cantidad, vector<Carta> &mazo);
+    void mostrar();
+    Carta lanzar(int index);
+};
+
+Mano::Mano(int cantidad, vector<Carta> &mazo) {
+    for (int i = 0; i < cantidad; i++) {
+        cartas.push_back(mazo.back());
+        mazo.pop_back();
+    }
+}
+
+void Mano::mostrar() {
+    for (size_t i = 0; i < cartas.size(); i++) {
+        cout << i + 1 << ". ";
+        cartas[i].mostrar();
+    }
+    cout << endl;
+}
+
+Carta Mano::lanzar(int index) {
+    Carta temp = cartas[index];
+    cartas.erase(cartas.begin() + index);
+    return temp;
+}
+
+class Jugador {
+public:
+    int id;
+    Mano mano;
+    vector<Carta> bodega;
+
+    Jugador(int i, int cantidadCartas, vector<Carta> &mazo);
+    void mostrarMano();
+    void almacenarCarta(Carta c);
+    int contarCartasBodega();
+    void mostrarBodega();
+};
+
+Jugador::Jugador(int i, int cantidadCartas, vector<Carta> &mazo) : id(i), mano(cantidadCartas, mazo) {}
+
+void Jugador::mostrarMano() {
+    cout << "Jugador " << id << " - Mano: ";
+    mano.mostrar();
+}
+
+void Jugador::almacenarCarta(Carta c) {
+    bodega.push_back(c);
+}
+
+int Jugador::contarCartasBodega() {
+    return bodega.size();
+}
+
+void Jugador::mostrarBodega() {
+    cout << "Bodega del Jugador " << id << " (" << contarCartasBodega() << " cartas): ";
+    for (Carta c : bodega) {
+        c.mostrar();
+    }
+    cout << endl;
+}
+
+class Batalla {
+public:
+    int colorInicial = -1;
+    vector<pair<Jugador*, Carta>> cartasLanzadas;
+
+    void iniciarRonda();
+    void comparar(Jugador &jugador, Carta carta);
+    Jugador* definirGanadorRonda();
+};
+
+void Batalla::iniciarRonda() {
+    cartasLanzadas.clear();
+    colorInicial = -1;
+}
+
+void Batalla::comparar(Jugador &jugador, Carta carta) {
+    if (cartasLanzadas.empty()) {
+        colorInicial = carta.color;
+    }
+    cartasLanzadas.push_back({&jugador, carta});
+}
+
+Jugador* Batalla::definirGanadorRonda() {
+    Jugador* ganador = nullptr;
+    int maxPoder = 0;
+    for (auto &entrada : cartasLanzadas) {
+        if (entrada.second.color == colorInicial && entrada.second.poder > maxPoder) {
+            maxPoder = entrada.second.poder;
+            ganador = entrada.first;
+        }
+    }
+    return ganador;
+}
+
+class Juego {
+public:
+    vector<Jugador> jugadores;
+    Batalla btla;
+    Mazo mazo;
+    int numJugadores;
+
+    Juego(int n);
+    void jugar();
+    void determinarGanador();
+};
+
+Juego::Juego(int n){
+    this->numJugadores = n;
+    this->mazo = mazo;
+    int cartasPorJugador = 36 / n;
+    for (int i = 0; i < n; i++) jugadores.push_back(Jugador(i + 1, cartasPorJugador, mazo.cartas));
+}
+
+void Juego::jugar() {
+    int n_;
+    cout << "Numero de rondas que desea jugar: " << endl;
+    cin >> n_;
+    for (int ronda = 0; ronda < n_; ronda++) {
+        cout << "\n--- Ronda " << ronda + 1 << " ---\n";
+        btla.iniciarRonda();
+        for (Jugador &j : jugadores) {
+            j.mostrarMano();
+            int eleccion;
+            do {
+                cout << "Jugador " << j.id << ", elige una carta para lanzar (1 - " << j.mano.cartas.size() << "): ";
+                cin >> eleccion;
+            } while (eleccion < 1 || eleccion > j.mano.cartas.size());
+            
+            Carta lanzada = j.mano.lanzar(eleccion - 1);
+            cout << "Jugador " << j.id << " lanza: "; lanzada.mostrar(); cout << endl;
+            btla.comparar(j, lanzada);
+        }
+        Jugador* ganadorRonda = btla.definirGanadorRonda();
+        if (ganadorRonda) {
+            cout << "Ganador de la ronda: Jugador " << ganadorRonda->id << "\n";
+            for (auto &entrada : btla.cartasLanzadas) {
+                ganadorRonda->almacenarCarta(entrada.second);
+            }
+        } else {
+            cout << "Nadie ganó la ronda, las cartas quedan descartadas.\n";
+        }
+         bool cartasDisponibles = false;
+    for (Jugador &j : jugadores) {
+        if (!j.mano.cartas.empty()) {
+            cartasDisponibles = true;
+            break;
+        }
+    }
+    if (!cartasDisponibles) {
+        cout << "\nLas cartas se han agotado. Fin del juego.\n";
+        break;
+    }
+    }
+    
+    determinarGanador();
+}
+
+void Juego::determinarGanador() {
+    for (Jugador &j : jugadores) {
+        j.mostrarBodega();
+    }
+    Jugador *ganador = &jugadores[0];
+    for (Jugador &j : jugadores) {
+        if (j.contarCartasBodega() > ganador->contarCartasBodega()) {
+            ganador = &j;
+        }
+    }
+    cout << "\nEl ganador final es el Jugador " << ganador->id << " con " << ganador->contarCartasBodega() << " cartas en la bodega!\n";
+}
+
+int main() {
+    int nJugadores;
+    do {
+        cout << "Ingrese el número de jugadores (2, 3 o 4): ";
+        cin >> nJugadores;
+    } while (nJugadores < 2 || nJugadores > 4);
+
+    Juego juego(nJugadores);
+    juego.jugar();
+    return 0;
+}
